@@ -117,8 +117,15 @@ Run this again when schema index definitions change. The command requires the sa
 
 ## Deployment and operating notes
 
-- Deploy the API and static frontend separately or behind a reverse proxy. Set production `NODE_ENV`, `MONGODB_URI`, `JWT_SECRET`, and `CORS_ORIGIN`; serve the frontend over HTTPS for camera access.
+- The repository includes a Render Blueprint in `render.yaml`, a Vercel SPA rewrite in `frontend/vercel.json`, and a GitHub Actions workflow at `.github/workflows/main.yml`. Pushes to `main` run backend tests and build the frontend, then trigger Render and Vercel deployments.
+- For the first deployment, create a MongoDB Atlas database configured as a replica set. Create a Render Blueprint from this repository and provide `MONGODB_URI` and `CORS_ORIGIN` when prompted. Use `https://<your-vercel-domain>` for `CORS_ORIGIN`; after creating the Vercel project, update this Render variable to the final Vercel domain. Disable Render automatic deployments after the first deployment so the workflow's deploy hook does not trigger a duplicate deploy.
+- Create the Vercel project with `frontend` as its root directory and set the production environment variable `VITE_API_URL` to `https://<your-render-service>.onrender.com/api`. Connect the project to the same GitHub repository. The frontend is deployed by the included workflow, so disable Vercel's automatic production deployments to avoid duplicate builds.
+- Add these GitHub repository Actions secrets under **Settings → Secrets and variables → Actions**. Until all required secrets for a provider are configured, its deployment job is skipped while tests and builds still run:
+  - `RENDER_DEPLOY_HOOK_URL`: the deploy hook URL from the Render API service settings.
+  - `VERCEL_TOKEN`: a Vercel access token allowed to deploy the project.
+  - `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`: values from the Vercel project's linked `.vercel/project.json`.
+- Render's Blueprint generates `JWT_SECRET` automatically. Keep MongoDB credentials and all deployment tokens in provider settings or GitHub Secrets; never commit them. After configuring the providers and secrets, push a commit to `main` or run **Actions → Test and deploy StockWise → Run workflow**.
 - Use a managed replica-set MongoDB service, enable backups, and restrict database network access. Set `MONGODB_MAX_POOL_SIZE` to suit the deployment and database limits.
 - Product images are stored on local disk by default. For multi-instance/ephemeral deployments, configure durable shared storage or replace local uploads with object storage before scaling horizontally.
-- This project does not include a preconfigured demo account, cloud deployment pipeline, or external object-storage integration. Registration creates the first admin for each business; staff accounts are managed by that admin.
+- Render's free service may sleep when idle, so the first request after inactivity can be delayed. Registration creates the first admin for each business; staff accounts are managed by that admin.
 - Offline operations are not reserved against server stock while disconnected. A queued operation may conflict after reconnection; review the reported conflict instead of assuming it was applied.
